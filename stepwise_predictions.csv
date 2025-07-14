@@ -1,0 +1,13 @@
+wafer_id,step,target,pred_label,pred_flag
+635,2,0,Normal,0
+635,4,0,Normal,0
+635,6,0,Normal,0
+635,7,0,Normal,0
+3729,2,0,Normal,0
+3729,4,0,Normal,0
+3729,6,0,Normal,0
+3729,7,0,Normal,0
+1677,2,1,Abnormal,1
+1677,4,1,Abnormal,1
+1677,6,1,Abnormal,1
+1677,7,1,Abnormal,1

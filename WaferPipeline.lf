@@ -1,0 +1,92 @@
+target C {
+    build-type: "Release",
+    keepalive: true
+}
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+// --- WaferProcessor Reactor ---
+reactor WaferProcessor {
+    timer t(0, 2 sec);
+
+    state index: int;
+    state total: int;
+
+    reaction(startup) {=
+        printf("[WaferProcessor] Initialized\n");
+        self->index = 0;
+        self->total = 100;  // Total number of simulated wafers
+        srand(time(NULL));
+    =}
+
+    reaction(t) {=
+        if (self->index >= self->total) {
+            printf("[WaferProcessor] All wafers processed.\n");
+            return;
+        }
+
+        float features[17];
+        int is_normal = rand() % 2;
+
+        for (int i = 0; i < 17; i++) {
+            if (is_normal) {
+                features[i] = ((float)(rand() % 100) / 100.0f) + 0.05f;
+            } else {
+                features[i] = ((float)(rand() % 300) / 100.0f) + 2.0f;
+            }
+        }
+
+        char feature_str[1024];
+        feature_str[0] = '\0';
+        for (int i = 0; i < 17; i++) {
+            char temp[32];
+            snprintf(temp, sizeof(temp), "%.6f ", features[i]);
+            strcat(feature_str, temp);
+        }
+
+        char command[2048];
+        char preds[4][8];
+        int steps[4] = {2, 4, 6, 7};
+        int any_abnormal = 0;
+
+        for (int i = 0; i < 4; i++) {
+            snprintf(command, sizeof(command),
+                "/workspace/playground-lingua-franca/.venv/bin/python /workspace/playground-lingua-franca/src/model_predictor.py %d %s",
+                steps[i], feature_str);
+
+            FILE* fp = popen(command, "r");
+            if (!fp) continue;
+
+            char line[128];
+            fgets(line, sizeof(line), fp); // label
+            fgets(line, sizeof(line), fp); // prediction
+            strncpy(preds[i], line, sizeof(preds[i]) - 1);
+            preds[i][strcspn(preds[i], "\r\n")] = 0;
+            if (strcmp(preds[i], "1") == 0) any_abnormal = 1;
+            pclose(fp);
+        }
+
+        int target = is_normal ? 0 : 1;
+        int final = any_abnormal ? 1 : 0;
+
+        FILE* log = fopen("lf_output.log", "a");
+        if (log) {
+            fprintf(log, "[Decision] Step Predictions: [%s, %s, %s, %s] → Final: %d | Target: %d\n",
+                preds[0], preds[1], preds[2], preds[3], final, target);
+            fclose(log);
+        }
+
+        printf("[WaferProcessor] Wafer %d → Final: %d | Target: %d\n",
+            self->index + 1, final, target);
+
+        self->index++;
+    =}
+}
+
+// --- Main Reactor ---
+main reactor {
+    processor = new WaferProcessor();
+}

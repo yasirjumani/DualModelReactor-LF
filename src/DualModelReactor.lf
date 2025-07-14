@@ -1,0 +1,167 @@
+target C {
+    build-type: "Release",
+    keepalive: true
+}
+
+reactor SmartPredictor(
+    step: int = 0,
+    agg: string = "mean",
+    threshold: float = 0.5
+) {
+    input  wafer_id:   int;
+    output prediction: int;
+
+    reaction(wafer_id) -> prediction {=
+        #include <stdio.h>
+        #include <stdlib.h>
+        int flag = 1;
+        char cmd[512];
+        snprintf(cmd, sizeof(cmd),
+            "python3 src/model_predictor.py %d %d --csv D1.csv --model-dir models --agg %s --threshold %.2f",
+            self->step, wafer_id->value, self->agg, self->threshold
+        );
+        FILE* fp = popen(cmd, "r");
+        if (fp) {
+            char buf[128];
+            // skip label
+            fgets(buf, sizeof(buf), fp);
+            // read flag
+            if (fgets(buf, sizeof(buf), fp)) flag = atoi(buf);
+            pclose(fp);
+        }
+        prediction->value      = flag;
+        prediction->is_present = true;
+    =}
+}
+
+reactor ScrapHandler {
+    input wafer:    int;
+    input p_neg1:   int; input p1:    int;
+    input p2:       int; input p4:    int;
+    input p6:       int; input p7:    int;
+    input p_neg2:   int;
+
+    reaction(p_neg1, wafer) {= if (p_neg1->value) printf("[SCRAP] Wafer %d scrapped at -1\n", wafer->value); =}
+    reaction(p1,   wafer)   {= if (p1->value)     printf("[SCRAP] Wafer %d scrapped at  1\n", wafer->value); =}
+    reaction(p2,   wafer)   {= if (p2->value)     printf("[SCRAP] Wafer %d scrapped at  2\n", wafer->value); =}
+    reaction(p4,   wafer)   {= if (p4->value)     printf("[SCRAP] Wafer %d scrapped at  4\n", wafer->value); =}
+    reaction(p6,   wafer)   {= if (p6->value)     printf("[SCRAP] Wafer %d scrapped at  6\n", wafer->value); =}
+    reaction(p7,   wafer)   {= if (p7->value)     printf("[SCRAP] Wafer %d scrapped at  7\n", wafer->value); =}
+    reaction(p_neg2, wafer) {= if (p_neg2->value) printf("[SCRAP] Wafer %d scrapped at -2\n", wafer->value); =}
+}
+
+reactor DigitalTwinMonitor {
+    input wafer:    int;
+    input p_neg1:   int; input p1:    int;
+    input p2:       int; input p4:    int;
+    input p6:       int; input p7:    int;
+    input p_neg2:   int;
+
+    reaction(p_neg2, wafer, p_neg1, p1, p2, p4, p6, p7) {=
+        printf("\n[MONITOR] Wafer %d\n", wafer->value);
+        printf("  -1:%d  1:%d  2:%d  4:%d  6:%d  7:%d  -2:%d\n",
+               p_neg1->value, p1->value, p2->value,
+               p4->value, p6->value, p7->value, p_neg2->value);
+        int fault = p_neg1->value || p1->value || p2->value ||
+                    p4->value    || p6->value || p7->value || p_neg2->value;
+        printf("  → Final Classification: %s\n", fault ? "ABNORMAL" : "NORMAL");
+    =}
+}
+
+reactor Logger {
+    input wafer:    int;
+    input p_neg1:   int; input p1:    int;
+    input p2:       int; input p4:    int;
+    input p6:       int; input p7:    int;
+    input p_neg2:   int;
+
+    reaction(p_neg2, wafer, p_neg1, p1, p2, p4, p6, p7) {=
+        FILE* f = fopen("wafer_log.csv","a");
+        if (f) {
+            fprintf(f, "%d,%d,%d,%d,%d,%d,%d,%d\n",
+                wafer->value,
+                p_neg1->value, p1->value, p2->value,
+                p4->value, p6->value, p7->value, p_neg2->value);
+            fclose(f);
+        }
+    =}
+}
+
+main reactor {
+    neg1 = new SmartPredictor(step=-1, agg="mean", threshold=0.5);
+    p1   = new SmartPredictor(step= 1, agg="mean", threshold=0.5);
+    p2   = new SmartPredictor(step= 2, agg="mean", threshold=0.5);
+    p4   = new SmartPredictor(step= 4, agg="mean", threshold=0.5);
+    p6   = new SmartPredictor(step= 6, agg="mean", threshold=0.5);
+    p7   = new SmartPredictor(step= 7, agg="mean", threshold=0.5);
+    neg2 = new SmartPredictor(step=-2, agg="mean", threshold=0.5);
+
+    mon   = new DigitalTwinMonitor();
+    log   = new Logger();
+    scrap = new ScrapHandler();
+
+    timer tick(0, 4 sec);
+    state wafer_id: int  = 635;
+    state busy:     bool = false;
+
+    reaction(tick) -> neg1.wafer_id, mon.wafer, log.wafer, scrap.wafer {=
+        if (!self->busy) {
+            self->busy = true;
+            neg1.wafer_id->value      = self->wafer_id;
+            neg1.wafer_id->is_present = true;
+            mon.wafer->value          = self->wafer_id; mon.wafer->is_present = true;
+            log.wafer->value          = self->wafer_id; log.wafer->is_present = true;
+            scrap.wafer->value        = self->wafer_id; scrap.wafer->is_present = true;
+        }
+    =}
+
+    reaction(neg1.prediction) -> p1.wafer_id, mon.p_neg1, log.p_neg1, scrap.p_neg1 {=
+        int v = neg1.prediction->value;
+        mon.p_neg1->value = log.p_neg1->value = scrap.p_neg1->value = v;
+        mon.p_neg1->is_present = log.p_neg1->is_present = scrap.p_neg1->is_present = true;
+        if (v==0) { p1.wafer_id->value = self->wafer_id; p1.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(p1.prediction) -> p2.wafer_id, mon.p1, log.p1, scrap.p1 {=
+        int v = p1.prediction->value;
+        mon.p1->value = log.p1->value = scrap.p1->value = v;
+        mon.p1->is_present = log.p1->is_present = scrap.p1->is_present = true;
+        if (v==0) { p2.wafer_id->value = self->wafer_id; p2.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(p2.prediction) -> p4.wafer_id, mon.p2, log.p2, scrap.p2 {=
+        int v = p2.prediction->value;
+        mon.p2->value = log.p2->value = scrap.p2->value = v;
+        mon.p2->is_present = log.p2->is_present = scrap.p2->is_present = true;
+        if (v==0) { p4.wafer_id->value = self->wafer_id; p4.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(p4.prediction) -> p6.wafer_id, mon.p4, log.p4, scrap.p4 {=
+        int v = p4.prediction->value;
+        mon.p4->value = log.p4->value = scrap.p4->value = v;
+        mon.p4->is_present = log.p4->is_present = scrap.p4->is_present = true;
+        if (v==0) { p6.wafer_id->value = self->wafer_id; p6.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(p6.prediction) -> p7.wafer_id, mon.p6, log.p6, scrap.p6 {=
+        int v = p6.prediction->value;
+        mon.p6->value = log.p6->value = scrap.p6->value = v;
+        mon.p6->is_present = log.p6->is_present = scrap.p6->is_present = true;
+        if (v==0) { p7.wafer_id->value = self->wafer_id; p7.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(p7.prediction) -> neg2.wafer_id, mon.p7, log.p7, scrap.p7 {=
+        int v = p7.prediction->value;
+        mon.p7->value = log.p7->value = scrap.p7->value = v;
+        mon.p7->is_present = log.p7->is_present = scrap.p7->is_present = true;
+        if (v==0) { neg2.wafer_id->value = self->wafer_id; neg2.wafer_id->is_present = true; }
+        else      { self->busy=false; self->wafer_id++; }
+    =}
+    reaction(neg2.prediction) -> mon.p_neg2, log.p_neg2, scrap.p_neg2 {=
+        int v = neg2.prediction->value;
+        mon.p_neg2->value = log.p_neg2->value = scrap.p_neg2->value = v;
+        mon.p_neg2->is_present = log.p_neg2->is_present = scrap.p_neg2->is_present = true;
+        self->busy=false;
+        self->wafer_id++;
+    =}
+}

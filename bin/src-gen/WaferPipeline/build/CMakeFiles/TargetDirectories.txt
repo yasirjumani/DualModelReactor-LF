@@ -1,0 +1,16 @@
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/WaferPipeline.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/edit_cache.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/rebuild_cache.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/list_install_components.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/install.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/install/local.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/CMakeFiles/install/strip.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/reactor-c.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/lf-low-level-platform-impl.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/lf-platform-impl.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/edit_cache.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/rebuild_cache.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/list_install_components.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/install.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/install/local.dir
+/workspace/playground-lingua-franca/bin/src-gen/WaferPipeline/build/core/CMakeFiles/install/strip.dir

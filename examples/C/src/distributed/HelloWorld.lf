@@ -1,0 +1,79 @@
+/**
+ * Distributed LF program where a MessageGenerator creates a string message that is sent via the RTI
+ * (runtime infrastructure) to a receiver that prints the message. To run this program, you must
+ * first [install the
+ * RTI](https://www.lf-lang.org/docs/handbook/distributed-execution?target=c#installation-of-the-rti).
+ *
+ * The code generator splits the program into two separate `.lf` files that it inserts into a
+ * directory called `fed-gen/HelloWorld/src` and then compiles those, inserting the executables into
+ * `fed-gen/HelloWorld/bin`. It also creates a shell script `bin/DistributedHelloWorld` that
+ * launches the the RTI and the two generated programs on localhost. Run this script.
+ *
+ * To run this manually (without using the script), you can start the RTI and then each of the two
+ * programs in `fed-gen/HelloWorld/bin`. They will synchronize the start time and run for 10
+ * seconds.
+ *
+ * @author Edward A. Lee
+ */
+target C {
+  timeout: 10 secs
+}
+
+/**
+ * Reactor that generates a sequence of messages, one per second. The message will be a string
+ * consisting of a prefix string followed by a count.
+ * @param prefix The prefix string.
+ * @output message The message.
+ */
+reactor MessageGenerator(prefix: string = "") {
+  // Output type char* instead of string is used for dynamically
+  // allocated character arrays (as opposed to static constant strings).
+  output message: char*
+  state count: int = 1
+  // Send first message after 1 sec so that the startup reactions
+  // do not factor into the transport time measurement on the first message.
+  timer t(1 sec, 1 sec)
+
+  reaction(t) -> message {=
+    // With NULL, 0 arguments, snprintf tells us how many bytes are needed.
+    // Add one for the null terminator.
+    int length = snprintf(NULL, 0, "%s %d", self->prefix, self->count) + 1;
+
+    // Dynamically allocate memory for the output.
+    char* buffer = malloc(length);
+
+    // Populate the output string and increment the count.
+    snprintf(buffer, length, "%s %d", self->prefix, self->count++);
+
+    lf_set_array(message, buffer, length);
+
+    tag_t tag = lf_tag();
+    lf_print("At (elapsed) logical tag (%lld, %u), source sends message: %s",
+      tag.time - lf_time_start(), tag.microstep,
+      message->value
+    );
+  =}
+}
+
+/**
+ * Reactor that prints the current tag and an incoming string.
+ *
+ * @input message The message.
+ */
+reactor PrintMessage {
+  input message: char*
+
+  reaction(message) {=
+    tag_t tag = lf_tag();
+    lf_print("At (elapsed) logical tag (%lld, %u), print receives: %s",
+      tag.time - lf_time_start(), tag.microstep,
+      message->value
+    );
+  =}
+}
+
+federated reactor HelloWorld {
+  source = new MessageGenerator(prefix = "Hello World")
+  print = new PrintMessage()
+  source.message -> print.message
+}

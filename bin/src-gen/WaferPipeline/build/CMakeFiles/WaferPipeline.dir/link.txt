@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG CMakeFiles/WaferPipeline.dir/lib/schedule.c.o CMakeFiles/WaferPipeline.dir/_waferpipeline_main.c.o CMakeFiles/WaferPipeline.dir/_waferprocessor.c.o CMakeFiles/WaferPipeline.dir/WaferPipeline.c.o -o WaferPipeline  -lm core/libreactor-c.a core/liblf-low-level-platform-impl.a core/liblf-platform-impl.a 

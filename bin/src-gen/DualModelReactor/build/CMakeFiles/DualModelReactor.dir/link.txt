@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG CMakeFiles/DualModelReactor.dir/lib/schedule.c.o CMakeFiles/DualModelReactor.dir/_dualmodelreactor_main.c.o CMakeFiles/DualModelReactor.dir/_waferprocessor.c.o CMakeFiles/DualModelReactor.dir/DualModelReactor.c.o -o DualModelReactor  -lm core/libreactor-c.a core/liblf-low-level-platform-impl.a core/liblf-platform-impl.a 

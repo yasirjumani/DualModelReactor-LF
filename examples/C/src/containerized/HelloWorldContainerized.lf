@@ -1,0 +1,21 @@
+/**
+ * Containerized distributed LF program where a MessageGenerator creates a string message that is
+ * sent via the RTI (runtime infrastructure) to a receiver that prints the message.
+ *
+ * For run instructions, see README.
+ *
+ * @author Edward A. Lee
+ */
+target C {
+  timeout: 10 secs,
+  docker: true
+}
+
+import MessageGenerator from "../distributed/HelloWorld.lf"
+import PrintMessage from "../distributed/HelloWorld.lf"
+
+federated reactor HelloWorldContainerized {
+  source = new MessageGenerator(prefix = "Hello World")
+  print = new PrintMessage()
+  source.message -> print.message
+}

@@ -1,0 +1,40 @@
+/**
+ * A basic user interface realized in the browser. This creates a basic web server that listens on a
+ * port (default 8080) for requests. When it receives a request with no path (e.g.
+ * "http://localhost:8080/"), it responds with the contents of a file specified by the
+ * `initial_file` parameter, which is expected to be an HTML file and outputs a true on its
+ * initialized output.
+ *
+ * When it receives a request with a path (e.g. "http://localhost:8080/test"), it responds with
+ * text. Normally, this would be JSON-formatted, but in this simple illustration, it is just plain
+ * text that reports the count of the number of requests that have been received.
+ *
+ * The default `initial_file` provides HTML containing a button that the user can push to issue a
+ * request with a path. This results in a display in the web page of the number of times the button
+ * has been pushed.
+ *
+ * @author Edward A. Lee
+ */
+target C {
+  keepalive: true
+}
+
+import ServerUI from "../lib/ServerUI.lf"
+
+main reactor {
+  state count: int = 0
+  s = new ServerUI()
+
+  reaction(s.initialized) {=
+    self->count = 0;
+  =}
+
+  reaction(s.request) -> s.response {=
+    char* response;
+    asprintf(&response, "You have pushed %d times. Path of GET request: %s",
+      ++self->count,
+      s.request->value
+    );
+    lf_set(s.response, response);
+  =}
+}
