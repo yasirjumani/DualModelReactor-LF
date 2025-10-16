@@ -1,5 +1,6 @@
-# Inside your Dockerfile:
+FROM ubuntu:jammy
+
+COPY scripts scripts
 RUN apt-get update && \
-    apt-get install -y sudo zip unzip curl sed && \
-    bash ./scripts/setup-env.bash 
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ THIS IS FAILING THE BUILD
+    apt-get install -y sudo zip unzip curl sed 
+    # REMOVE OR COMMENT OUT THIS LINE: bash ./scripts/setup-env.bash
